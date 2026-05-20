@@ -47,3 +47,9 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+*.RDS
+*.qza
+*.qzv
+*.npy
+*.csv
+data/
