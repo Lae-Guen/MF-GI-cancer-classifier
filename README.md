@@ -4,7 +4,7 @@
 
 Jang LG, Huh JW, et al. — *Cell Host & Microbe* (under review)
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.XXXXXXX.svg)](https://doi.org/10.5281/zenodo.XXXXXXX)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20302778.svg)](https://doi.org/10.5281/zenodo.20302778)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![R version](https://img.shields.io/badge/R-4.1.0-blue.svg)](https://www.r-project.org/)
 
@@ -92,7 +92,7 @@ Raw sequencing data are deposited at NCBI Sequence Read Archive (SRA) and DDBJ.
 | Zeller | Fecal (unpaired) | CRC | V3-V4 | PRJEB6070 |
 
 Pre-processed QIIME2 artifacts (.qza) for all cohorts are provided via Zenodo:
-**[https://doi.org/10.5281/zenodo.XXXXXXX](https://doi.org/10.5281/zenodo.XXXXXXX)**
+**[https://doi.org/10.5281/zenodo.20302778](https://doi.org/10.5281/zenodo.20302778)**
 
 ---
 
@@ -281,7 +281,7 @@ If you use this code or data, please cite:
 > *Cell Host & Microbe* (under review).
 
 Code and data archived at Zenodo:
-> [https://doi.org/10.5281/zenodo.XXXXXXX](https://doi.org/10.5281/zenodo.XXXXXXX)
+> [https://doi.org/10.5281/zenodo.20302778](https://doi.org/10.5281/zenodo.20302778)
 
 ---
 
