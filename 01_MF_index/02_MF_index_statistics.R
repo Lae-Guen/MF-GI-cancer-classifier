@@ -38,7 +38,7 @@ library(Hmisc)     # rcorr() for Spearman correlation
 # Samples without any shared ASVs (paired but no MF bacteria detected) are
 # assigned an MF index of 0. Unpaired samples are excluded.
 
-d   <- readRDS("data/yonsei_r15000.RDS")
+d <- readRDS("data/yonsei_r15000.RDS")
 mtg <- read.csv("data/yonsei.mtg.csv")
 
 # Aggregate shared fecal counts per sample and compute MF index
@@ -49,7 +49,7 @@ mtg_index <- aggregate(Fecal_count ~ Feces_sample, data = mtg, sum) %>%
 meta <- microbiome::meta(d) %>%
   filter(Type == "Feces") %>%
   mutate(Feces_sample = rownames(.)) %>%
-  select(Feces_sample, Group, BMI, SMOK_A_MOD, ALCO_A_MOD, EXER_A_MOD, MED9)
+  select(Feces_sample, Group, BMI, Smoking, Alcohol, Exercise, MED9)
 
 # Left join: samples with no shared ASVs receive NA → recode to 0
 mtg_index <- left_join(meta, mtg_index, by = "Feces_sample") %>%
@@ -144,6 +144,8 @@ cat("Results saved: mf_index_wilcoxon_effectsize.csv\n")
 # -----------------------------------------------------------------------------
 # 8. Visualization: violin plot of MF index by group
 # -----------------------------------------------------------------------------
+mtg_index$Group <- factor(mtg_index$Group, levels = c("HC", "MD", "GC", "CRC"))
+
 my_comparisons <- list(c("HC", "MD"), c("HC", "GC"), c("HC", "CRC"))
 
 p <- ggviolin(mtg_index, x = "Group", y = "MTG.index",
@@ -164,28 +166,17 @@ cat("Figure saved: mf_index.png\n")
 # -----------------------------------------------------------------------------
 # 9. Lifestyle association: MF index vs alcohol consumption (CRC subgroup)
 # -----------------------------------------------------------------------------
-filtered_alco <- mtg_index %>% filter(!is.na(ALCO_A_MOD), Group == "CRC")
+filtered_alco <- mtg_index %>% filter(!is.na(Alcohol), Group == "CRC")
 
-ggboxplot(filtered_alco, x = "ALCO_A_MOD", y = "MTG.index",
+ggboxplot(filtered_alco, x = "Alcohol", y = "MTG.index",
           fill = "#D3D3D3") +
   geom_jitter(aes(color = Group), width = 0.2, alpha = 0.7) +
   scale_color_manual(values = c("#eaa4a4")) +
   stat_compare_means(size = 5)
 
-# -----------------------------------------------------------------------------
-# 10. Lifestyle association: MF index vs antidiabetic medication (MD subgroup)
-# -----------------------------------------------------------------------------
-# MED9: antidiabetic medication use (binary: 0 = no, 1 = yes)
-filtered_med <- mtg_index %>% filter(!is.na(MED9), Group == "MD")
-
-ggboxplot(filtered_med, x = "MED9", y = "MTG.index",
-          fill = "#D3D3D3") +
-  geom_jitter(aes(color = Group), width = 0.2, alpha = 0.7) +
-  scale_color_manual(values = c("#ffeb33")) +
-  stat_compare_means(size = 5)
 
 # -----------------------------------------------------------------------------
-# 11. Spearman correlation: MF-shared bacteria abundance vs clinical indicators
+# 10. Spearman correlation: MF-shared bacteria abundance vs clinical indicators
 # -----------------------------------------------------------------------------
 data_corr <- read.csv("data/yonsei.mtg.csv") %>%
   mutate(
@@ -205,13 +196,14 @@ data_corr <- left_join(data_corr, meta_full, by = "Feces_sample")
 # Clinical indicators to test
 clinical_vars <- c("TG", "HDL", "LDL", "CHO", "BMI", "HbA1c", "FBS",
                    "SBP", "DBP", "WBC", "PLT", "globulin", "GGT", "LD",
-                   "hsCRP", "FreeT4", "TSH", "BUN.Creatinineratio",
-                   "Albumin.Globulin", "AFP", "CA19.9", "VitD")
+                   "hsCRP", "FreeT4", "TSH", "BUN.Creatinine.ratio",
+                   "Albumin.Globulin.ratio", "AFP", "CA19.9", "VitD")
 
-# Keep only species with >= 50 non-missing fecal log-abundance observations
+# Keep only species with >= 10 non-missing fecal log-abundance observations
 valid_species <- data_corr %>%
+  filter(!is.na(Species)) %>%
   group_by(Species) %>%
-  filter(sum(!is.na(fecallog)) >= 50) %>%
+  filter(sum(!is.na(fecallog)) >= 10) %>%
   pull(Species) %>%
   unique()
 
@@ -219,37 +211,43 @@ valid_species <- data_corr %>%
 significant_list <- list()
 
 for (sp in valid_species) {
-  sp_data <- data_corr %>% filter(Species == sp)
+  sp_data <- data_corr %>%
+    filter(Species == sp) %>%
+    mutate(across(all_of(clinical_vars), as.numeric))
+  
   if (nrow(sp_data) < 10) next
-
-  cor_mat <- Hmisc::rcorr(
-    as.matrix(sp_data[, c("fecallog", clinical_vars)]),
-    type = "spearman"
-  )
-
-  rho_vals <- cor_mat$r[1, -1]
-  p_vals   <- cor_mat$P[1, -1]
-  sig_idx  <- which(p_vals < 0.05)
-
-  if (length(sig_idx) > 0) {
-    significant_list[[length(significant_list) + 1]] <- data.frame(
-      Species        = sp,
-      Clinical_Metric = names(rho_vals)[sig_idx],
-      Spearman_rho   = rho_vals[sig_idx],
-      p_value        = p_vals[sig_idx]
+  
+  results <- lapply(clinical_vars, function(cv) {
+    # 각 변수별로 pairwise complete (scatter plot과 동일 조건)
+    tmp <- sp_data %>%
+      select(fecallog, all_of(cv)) %>%
+      filter(complete.cases(.))
+    
+    if (nrow(tmp) < 10) return(NULL)
+    
+    ct <- cor.test(tmp$fecallog, tmp[[cv]], method = "spearman", exact = FALSE)
+    data.frame(
+      Species         = sp,
+      Clinical_Metric = cv,
+      Spearman_rho    = as.numeric(ct$estimate),
+      p_value         = ct$p.value,
+      n               = nrow(tmp)
     )
-  }
+  })
+  
+  sig <- do.call(rbind, results) %>% filter(p_value < 0.05)
+  if (nrow(sig) > 0) significant_list[[length(significant_list) + 1]] <- sig
 }
 
 sig_corr_df <- do.call(rbind, significant_list)
 write.csv(sig_corr_df, "fecallog_spearman_clinical.csv", row.names = FALSE)
 cat("Spearman correlation results saved: fecallog_spearman_clinical.csv\n")
 
-# Scatter plot: example visualization (DBP vs oral log-abundance)
+# Scatter plot: example visualization (Cholesterol vs fecal log-abundance)
 sig_species <- unique(sig_corr_df$Species)
 plot_data <- data_corr %>% filter(Species %in% sig_species)
 
-ggscatter(plot_data, x = "DBP", y = "orallog",
+ggscatter(plot_data, x = "CHO", y = "fecallog",
           color = "Group",
           palette = c("#75ca9d", "#ffeb33", "#ca75dd", "#eaa4a4"),
           size = 3, shape = 1,

@@ -29,7 +29,7 @@ d <- readRDS("data/yonsei_r15000.RDS")
 #   S = oral (Mouth), F = fecal (Feces)
 # PersonKey: SampleID with the trailing S/F removed → identifies one individual
 
-meta <- read.table("data/yonsei.meta.txt",
+meta <- read.table("./yonsei.meta.txt",
                    header = TRUE, sep = "\t", stringsAsFactors = FALSE)
 
 meta <- meta %>%
@@ -88,6 +88,9 @@ write.table(meta, file = "data/yonsei.meta_checked.txt",
 
 metadata <- read.table("data/yonsei.meta_checked.txt",
                        header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+
+rownames(metadata) <- metadata$SampleID
+sample_data(d) <- sample_data(metadata)
 
 unique_subject_ids <- unique(metadata$SubjectID)
 results_list <- list()

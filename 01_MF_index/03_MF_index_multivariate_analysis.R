@@ -34,7 +34,7 @@ library(ggpubr)
 # -----------------------------------------------------------------------------
 # 1. Load data and recode covariates
 # -----------------------------------------------------------------------------
-df <- read.csv("data/mf_index_meta_15000.csv", stringsAsFactors = FALSE)
+df <- read.csv("./mf_index_meta_15000.csv", stringsAsFactors = FALSE)
 
 df <- df %>%
   mutate(
